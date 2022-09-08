@@ -11,17 +11,20 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    // unique: true,
   },
-  // userId: {
-  //   type: String,
-  //   required: true,
-  // },
   registered: {
     type: Boolean,
     default: false,
   },
-  authenticators: [],
+  credentialID: {
+    type: Buffer,
+  },
+  credentialPublicKey: {
+    type: Buffer,
+  },
+  counter: {
+    type: Number,
+  },
 });
 
 module.exports = mongoose.model("users", userSchema);
