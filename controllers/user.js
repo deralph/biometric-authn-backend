@@ -6,7 +6,8 @@ const { generateRegistrationOptions, verifyRegistrationResponse } =
 const { generateAuthenticationOptions, verifyAuthenticationResponse } =
   SimpleWebAuthnServer;
 const User = require("../model/user");
-const utils = require('../utils')
+const utils = require("../utils");
+const base64url = require("base64url");
 
 // Human-readable title for your website
 const rpName = "SimpleWebAuthn Example";
@@ -35,7 +36,7 @@ const register = async (req, res) => {
     authenticators: [],
   };
   const latestUser = await User.create(newUser);
-  const latestUserIdString =latestUser._id.toString()
+  const latestUserIdString = latestUser._id.toString();
 
   let options = generateRegistrationOptions({
     rpName,
@@ -142,7 +143,7 @@ const login = async (req, res) => {
   }
   const user = await User.findOne({ email, admissionId });
 
-  console.log(user)
+  console.log(user);
 
   // (Pseudocode) Retrieve the logged-in user
   //   const user: UserModel = getUserFromDB(loggedInUserId);
@@ -171,15 +172,15 @@ const login = async (req, res) => {
     userVerification: "preferred",
   });
 
-//  let getAssertion    = utils.generateServerGetAssertion(userAuthenticators)
-//     getAssertion.status = 'ok'
+  //  let getAssertion    = utils.generateServerGetAssertion(userAuthenticators)
+  //     getAssertion.status = 'ok'
 
-//     req.session.challenge = getAssertion.challenge;
-//     req.session.username  = email;
-//     console.log('getting assertion')
-// console.log(getAssertion)
-//     res.json(getAssertion)
-  
+  //     req.session.challenge = getAssertion.challenge;
+  //     req.session.username  = email;
+  //     console.log('getting assertion')
+  // console.log(getAssertion)
+  //     res.json(getAssertion)
+
   // (Pseudocode) Remember this challenge for this user
   //   setUserCurrentChallenge(user, options.challenge);
 
@@ -187,7 +188,7 @@ const login = async (req, res) => {
   req.session.challenge = options.challenge;
   console.log(req.session.challenge);
   req.session.email = email;
-  console.log(req.session.email)
+  console.log(req.session.email);
   // req.session.save()
   res.status(200).json(options);
 };
@@ -209,7 +210,9 @@ const verifyLogin = async (req, res) => {
   // (Pseudocode} Retrieve an authenticator from the DB that
   // should match the `id` in the returned credential
   console.log(user);
-  console.log(user.credentialID,body.id)
+
+  const decode = base64url.decode(user.credentialID);
+  console.log(user.credentialID, body.id);
   // const authenticator = user._id.toString() === body.id;
   // console.log(authenticator);
 
@@ -263,10 +266,10 @@ const verifyLogin = async (req, res) => {
       counter,
     },
   ];
-  const answer = userAuthenticators.credentialID===body.id
-  console.log(answer)
-  res.json({msg:'pending'})
-// const  result = utils.verifyAuthenticatorAssertionResponse(body, userAuthenticators);
+  const answer = userAuthenticators.credentialID === body.id;
+  console.log(answer);
+  res.json({ msg: "pending" });
+  // const  result = utils.verifyAuthenticatorAssertionResponse(body, userAuthenticators);
 };
 
 module.exports = { register, verifyRegistration, login, verifyLogin };
