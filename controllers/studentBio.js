@@ -5,9 +5,10 @@ const { generateRegistrationOptions, verifyRegistrationResponse } =
   SimpleWebAuthnServer;
 const { generateAuthenticationOptions, verifyAuthenticationResponse } =
   SimpleWebAuthnServer;
-const User = require("../model/user");
+const User = require("../model/studentBio");
 const utils = require("../utils");
 const base64url = require("base64url");
+const classes = require("../model/classes");
 
 // Human-readable title for your website
 const rpName = "SimpleWebAuthn Example";
@@ -16,16 +17,16 @@ const rpID = "localhost";
 // The URL at which registrations and authentications should occur
 const origin = `http://localhost:3000`;
 
-const register = async (req, res) => {
+const registerBio = async (req, res) => {
   console.log("in");
-  console.log(req.body);
-  const { admissionId, email } = req.body;
+  // console.log(req.body);
+  const { admissionId, email } = req.user;
 
   if (!req.body || !admissionId || !email) {
     throw new unauthorised("action requires admissionId and email");
   }
-  const user = await User.findOne({ email, admissionId });
-  if (user) throw new unauthorised("user already registered");
+  // const user = await User.findOne({ email, admissionId });
+  // if (user) throw new unauthorised("user already registered");
   const userAuthenticators = [];
 
   const newUser = {
@@ -34,6 +35,7 @@ const register = async (req, res) => {
     registered: false,
     // userId: utils.randomBase64URLBuffer(),
     authenticators: [],
+    attended: [],
   };
   const latestUser = await User.create(newUser);
   const latestUserIdString = latestUser._id.toString();
@@ -65,7 +67,7 @@ const register = async (req, res) => {
   res.status(200).json(options);
 };
 
-const verifyRegistration = async (req, res) => {
+const verifyRegistrationOfBio = async (req, res) => {
   const { body } = req;
   console.log("in verification");
   console.log(req.session);
@@ -111,14 +113,18 @@ const verifyRegistration = async (req, res) => {
     credentialID,
     credentialPublicKey,
     counter,
-    registered: true,
+    // registered: true,
   };
   console.log(newAuthenticator, verified);
   const email = req.session.email;
-  const user = await User.findOneAndUpdate({ email }, newAuthenticator, {
-    new: true,
-    runValidators: true,
-  });
+  const user = await User.findOneAndUpdate(
+    { email },
+    { authenticators: [newAuthenticator], registered: true },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
   if (!user) {
     throw new unauthorised(
       "an issue ocurred with the user please try logging in again"
@@ -133,17 +139,22 @@ const verifyRegistration = async (req, res) => {
 
 // login user
 
-const login = async (req, res) => {
+const createAuthenticationOptionForAttendanceUsingBio = async (req, res) => {
   console.log("in login");
-  console.log(req.body);
-  const { admissionId, email } = req.body;
-
-  if (!req.body || !admissionId || !email) {
+  const { admissionId, email } = req.user;
+  console.log(req.user);
+  const body = req.body;
+  console.log(body);
+  if (!admissionId || !email) {
     throw new unauthorised("action requires admissionId and email");
   }
   const user = await User.findOne({ email, admissionId });
 
   console.log(user);
+  if (!user)
+    throw new unauthorised(
+      "an error ocured in which user was not detected, please try logging in again"
+    );
 
   // (Pseudocode) Retrieve the logged-in user
   //   const user: UserModel = getUserFromDB(loggedInUserId);
@@ -151,15 +162,16 @@ const login = async (req, res) => {
   // registered authenticators
   //   const userAuthenticators: Authenticator[] = getUserAuthenticators(user);
 
-  const { credentialID, credentialPublicKey, counter } = user;
+  // const { credentialID, credentialPublicKey, counter } = user;
 
-  const userAuthenticators = [
-    {
-      credentialID,
-      credentialPublicKey,
-      counter,
-    },
-  ];
+  // const userAuthenticators = [
+  //   {
+  //     credentialID,
+  //     credentialPublicKey,
+  //     counter,
+  //   },
+  // ];
+  const userAuthenticators = user.authenticators;
 
   const options = generateAuthenticationOptions({
     // Require users to use a previously-registered authenticator
@@ -189,21 +201,24 @@ const login = async (req, res) => {
   console.log(req.session.challenge);
   req.session.email = email;
   console.log(req.session.email);
+  req.session.body = body;
   // req.session.save()
   res.status(200).json(options);
 };
 
-const verifyLogin = async (req, res) => {
+const verifyAttendance = async (req, res) => {
   console.log("verifying login");
   const { body } = req;
+  const { admissionId, email: userEmail } = req.user;
   console.log(body);
   console.log(req.session);
 
   // (Pseudocode) Retrieve the logged-in user
   // const user: UserModel = getUserFromDB(loggedInUserId);
   const email = req.session.email;
+  const sessionBody = req.session.body;
   // console.log(email);
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ admissionId, email });
 
   // (Pseudocode) Get `options.challenge` that was saved above
   const expectedChallenge = req.session.challenge;
@@ -212,6 +227,7 @@ const verifyLogin = async (req, res) => {
   console.log(user);
 
   const decode = base64url.decode(user.credentialID);
+  console.log(decode);
   console.log(user.credentialID, body.id);
   // const authenticator = user._id.toString() === body.id;
   // console.log(authenticator);
@@ -255,21 +271,59 @@ const verifyLogin = async (req, res) => {
   //   console.error(error);
   //   return res.status(400).send({ error: error.message });
   // }
-  // const user = await User.findOne({ email });
+  // const user = await User.findOne({ admissionId, email });
 
-  const { credentialID, credentialPublicKey, counter } = user;
+  // const { credentialID, credentialPublicKey, counter } = user;
 
-  const userAuthenticators = [
-    {
-      credentialID,
-      credentialPublicKey,
-      counter,
-    },
-  ];
-  const answer = userAuthenticators.credentialID === body.id;
+  // const userAuthenticators = [
+  //   {
+  //     credentialID,
+  //     credentialPublicKey,
+  //     counter,
+  //   },
+  // ];
+  const answer = user.authenticators[0].credentialID === body.id;
   console.log(answer);
-  res.json({ msg: "pending" });
-  // const  result = utils.verifyAuthenticatorAssertionResponse(body, userAuthenticators);
+  const { course_code, class_code } = sessionBody;
+
+  const Class = await classes.findOne({ course_code, class_code });
+
+  if (!Class) throw new badRequest("invalid class code or course code");
+
+  if (Class.closed)
+    throw new badRequest("oops the attendance for this class is closed");
+
+  const newAttendance = [...user.attended, Class];
+
+  const studentAttendanceTaken = await User.findByIdAndUpdate(
+    { admissionId, email },
+    { attended: newAttendance },
+    { new: true, runValidators: true }
+  );
+  if (!studentAttendanceTaken)
+    throw new badRequest("error ocured while taking attendance");
+  const result = utils.verifyAuthenticatorAssertionResponse(
+    body,
+    user.authenticators
+  );
+  console.log(result);
+  res.status(200).json({ sucess: true, messasge: "attendance added", result });
 };
 
-module.exports = { register, verifyRegistration, login, verifyLogin };
+const deleteUnregisteredStudent = async (req, res) => {
+  const { admissionId, email } = req.user;
+  const user = await User.findOne({ admissionId, email });
+  if (!user) throw new badRequest("user was not created ");
+  if (user.registered)
+    throw new badRequest("user biometric was registered sucessfully");
+  const deletedUser = await User.deleteOne({ admissionId, email });
+  res.status(200).json({ message: "user deleted sucessfully", deletedUser });
+};
+
+module.exports = {
+  registerBio,
+  verifyRegistrationOfBio,
+  createAuthenticationOptionForAttendanceUsingBio,
+  verifyAttendance,
+  deleteUnregisteredStudent,
+};

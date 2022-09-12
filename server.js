@@ -1,9 +1,9 @@
 const express = require("express");
 const app = express();
 
-const cookieSession = require("cookie-session");
+// const cookieSession = require("cookie-session");
 const session = require("express-session");
-var RedisStore = require("connect-redis")(session);
+// var RedisStore = require("connect-redis")(session);
 
 const cors = require("cors");
 const xss = require("xss-clean");
@@ -12,7 +12,12 @@ const helmet = require("helmet");
 const connectDB = require("./connect db/connect");
 const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
-const registerRouter = require("./routes/user");
+const registerBio = require("./routes/studentBio");
+const studentAuth = require("./routes/student");
+const classes = require("./routes/classes");
+const admin = require("./routes/admin");
+
+const authorised = require("./middleware/authorise");
 
 require("express-async-errors");
 require("dotenv").config();
@@ -52,7 +57,10 @@ app.use(xss());
 app.use("/api/v1", (req, res) => {
   res.status(200).send("home page");
 });
-app.use("/", registerRouter);
+app.use("/api/v1/auth/", studentAuth);
+app.use("/api/v1/bio/", authorised, registerBio);
+app.use("/api/v1/class/", authorised, classes);
+app.use("/api/v1/admin/", admin);
 
 app.use(notFound);
 app.use(errorHandler);

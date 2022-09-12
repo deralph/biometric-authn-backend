@@ -380,7 +380,7 @@ let verifyAuthenticatorAssertionResponse = (
       clientDataHash,
     ]);
 
-    let publicKey = ASN1toPEM(base64url.toBuffer(authr.publicKey));
+    let publicKey = ASN1toPEM(base64url.toBuffer(authr.credentialPublicKey));
     let signature = base64url.toBuffer(webAuthnResponse.response.signature);
 
     response.verified = verifySignature(signature, signatureBase, publicKey);
